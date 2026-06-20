@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: taxi-backend
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: taxi-backend
+
+  template:
+    metadata:
+      labels:
+        app: taxi-backend
+
+    spec:
+      containers:
+        - name: taxi-backend
+          image: rohit261/rudrabannataxiservices:latest
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8080
+
+          env:
+            - name: DB_URL
+              value: "jdbc:mysql://YOUR_REAL_DB_HOST:3306/taxi_services?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+
+            - name: DB_USER
+              value: "root"
+
+            - name: DB_PASSWORD
+              value: "root1234"
+
+            - name: FRONTEND_URL
+              value: "https://YOUR_FRONTEND_DOMAIN"
+
+            - name: APP_LOG_LEVEL
+              value: "INFO"
+
+            - name: SHOW_SQL
+              value: "false"
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
