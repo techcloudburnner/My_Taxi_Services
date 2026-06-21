@@ -3,6 +3,8 @@ kind: Deployment
 
 metadata:
   name: mysql
+  labels:
+    app: mysql
 
 spec:
   replicas: 1
@@ -18,23 +20,38 @@ spec:
 
     spec:
       containers:
-      - name: mysql
-        image: mysql:8.0
+        - name: mysql
+          image: mysql:8.0
 
-        ports:
-        - containerPort: 3306
+          ports:
+            - containerPort: 3306
 
-        env:
-        - name: MYSQL_ROOT_PASSWORD
-          value: root1234
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "root1234"
 
-        - name: MYSQL_DATABASE
-          value: taxi_services
+            - name: MYSQL_DATABASE
+              value: "taxi_services"
 
-        volumeMounts:
-        - name: mysql-storage
-          mountPath: /var/lib/mysql
+            - name: MYSQL_ROOT_HOST
+              value: "%"
+
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+
+          readinessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 60
+            periodSeconds: 20
 
       volumes:
-      - name: mysql-storage
-        emptyDir: {}
+        - name: mysql-storage
+          emptyDir: {}
