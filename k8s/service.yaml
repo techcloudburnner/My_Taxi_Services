@@ -3,19 +3,14 @@ kind: Service
 
 metadata:
   name: taxi-backend-service
-  labels:
-    app: taxi-backend
-    tier: backend
 
 spec:
   selector:
     app: taxi-backend
-    tier: backend
 
   ports:
     - protocol: TCP
       port: 8080
       targetPort: 8080
-      name: http
 
   type: ClusterIP
