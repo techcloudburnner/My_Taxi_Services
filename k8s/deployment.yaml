@@ -26,9 +26,9 @@ spec:
             - containerPort: 8080
 
           env:
-            - name: DB_URL
-              value: "jdbc:mysql://mysql-service:3306/taxi_services?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
-              
+           - name: DB_URL
+             value: "jdbc:mysql://mysql:3306/taxi_services?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+  
             - name: DB_USER
               value: "root"
 
