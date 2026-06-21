@@ -3,20 +3,13 @@ kind: Service
 
 metadata:
   name: mysql
-  labels:
-    app: mysql
-    tier: database
 
 spec:
   selector:
     app: mysql
-    tier: database
 
   ports:
     - port: 3306
       targetPort: 3306
-      protocol: TCP
-      name: mysql
 
   type: ClusterIP
-  clusterIP: None  # Headless service for stable DNS
