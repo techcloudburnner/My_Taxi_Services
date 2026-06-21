@@ -26,13 +26,18 @@ pipeline {
                     
                     mvn clean package -DskipTests -B
                     
+                    echo ""
                     echo "Build Output:"
                     ls -la target/
                     
                     # Check if JAR exists
                     if ls target/*.jar 1> /dev/null 2>&1; then
+                        echo ""
                         echo "✅ JAR file created successfully!"
+                        # Show jar file name
+                        echo "JAR File: $(ls target/*.jar | head -1)"
                     else
+                        echo ""
                         echo "❌ No JAR file found!"
                         exit 1
                     fi
@@ -47,12 +52,17 @@ pipeline {
                     echo "BUILDING DOCKER IMAGE"
                     echo "========================================="
                     
+                    # Build Docker image
                     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    
+                    # Tag as latest
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
                     
+                    echo ""
                     echo "Docker Images:"
                     docker images | grep ${IMAGE_NAME}
                     
+                    echo ""
                     echo "✅ Docker image built successfully!"
                 '''
             }
@@ -81,6 +91,7 @@ pipeline {
                         echo "Pushing ${IMAGE_NAME}:latest..."
                         docker push ${IMAGE_NAME}:latest
                         
+                        echo ""
                         echo "✅ Images pushed successfully!"
                     '''
                 }
@@ -102,25 +113,47 @@ pipeline {
                     # Check if kubeconfig exists
                     if [ ! -f "${KUBECONFIG}" ]; then
                         echo "❌ Kubeconfig not found at: ${KUBECONFIG}"
-                        exit 1
+                        echo "Checking for kubeconfig in home directory..."
+                        if [ -f "$HOME/.kube/config" ]; then
+                            echo "Found kubeconfig at $HOME/.kube/config"
+                            export KUBECONFIG="$HOME/.kube/config"
+                        else
+                            echo "No kubeconfig found!"
+                            exit 1
+                        fi
                     fi
                     
-                    # Apply all Kubernetes manifests
-                    echo "Applying Kubernetes configurations..."
-                    kubectl --kubeconfig=${KUBECONFIG} apply -f k8s/
+                    # Apply MySQL first
+                    echo "[1/3] Deploying MySQL..."
+                    kubectl --kubeconfig=${KUBECONFIG} apply -f k8s/mysql-deployment.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -f k8s/mysql-service.yaml
                     
-                    # Update the deployment image
+                    # Wait for MySQL
+                    echo "[2/3] Waiting for MySQL to be ready..."
+                    kubectl --kubeconfig=${KUBECONFIG} wait --for=condition=ready pod -l app=mysql --timeout=180s || {
+                        echo "⚠️  MySQL might not be ready yet, continuing..."
+                    }
+                    
+                    # Deploy application
+                    echo "[3/3] Deploying Application..."
+                    kubectl --kubeconfig=${KUBECONFIG} apply -f k8s/service.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -f k8s/deployment.yaml
+                    
+                    # Update image
                     echo "Updating deployment image..."
                     kubectl --kubeconfig=${KUBECONFIG} \
                         set image deployment/taxi-backend \
                         taxi-backend=${IMAGE_NAME}:${IMAGE_TAG}
                     
-                    # Wait for rollout to complete
+                    # Wait for rollout
+                    echo ""
                     echo "Waiting for rollout to complete..."
                     if ! kubectl --kubeconfig=${KUBECONFIG} \
                         rollout status deployment/taxi-backend --timeout=300s; then
                         echo ""
+                        echo "========================================="
                         echo "❌ DEPLOYMENT FAILED!"
+                        echo "========================================="
                         echo "Rolling back to previous version..."
                         kubectl --kubeconfig=${KUBECONFIG} rollout undo deployment/taxi-backend
                         
@@ -129,12 +162,17 @@ pipeline {
                         kubectl --kubeconfig=${KUBECONFIG} get pods -l app=taxi-backend
                         
                         echo ""
-                        echo "Pod logs:"
+                        echo "Pod details:"
+                        kubectl --kubeconfig=${KUBECONFIG} describe pod -l app=taxi-backend
+                        
+                        echo ""
+                        echo "Application logs (last 50 lines):"
                         kubectl --kubeconfig=${KUBECONFIG} logs -l app=taxi-backend --tail=50
                         
                         exit 1
                     fi
                     
+                    echo ""
                     echo "✅ Deployment successful!"
                 '''
             }
@@ -183,10 +221,11 @@ pipeline {
                 Build URL: ${env.BUILD_URL}
                 =========================================
                 
-                ✅ All stages completed successfully
-                ✅ Docker image pushed to registry
-                ✅ Application deployed to Kubernetes
-                ✅ Deployment verified
+                ✅ Maven Build - Completed
+                ✅ Docker Build - Completed
+                ✅ Docker Push - Completed
+                ✅ Kubernetes Deploy - Completed
+                ✅ Verification - Completed
             """
         }
         
@@ -202,13 +241,6 @@ pipeline {
                 =========================================
                 
                 Please check the console output above for error details.
-                
-                Common fixes:
-                1. Check Maven build errors
-                2. Verify Docker daemon is running
-                3. Check Docker Hub credentials
-                4. Verify Kubernetes cluster connection
-                5. Check if MySQL is running in cluster
             """
         }
         
@@ -219,7 +251,6 @@ pipeline {
             cleanWs(
                 cleanWhenNotBuilt: false,
                 deleteDirs: true,
-                disableDeferredWipeout: false,
                 notFailBuild: true
             )
             echo "Cleanup complete!"
