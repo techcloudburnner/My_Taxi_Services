@@ -4,7 +4,6 @@ pipeline {
     environment {
         IMAGE_NAME = "rohit261/rudrabannataxiservices"
         IMAGE_TAG = "${BUILD_NUMBER}"
-        KUBECONFIG = "/var/jenkins_home/.kube/config"
     }
     
     stages {
@@ -49,18 +48,27 @@ pipeline {
         stage('Deploy To Kubernetes') {
             steps {
                 sh """
-                kubectl --kubeconfig=$KUBECONFIG delete deployment mysql --ignore-not-found=true
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/mysql-deployment.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/mysql-service.yaml
+                if [ -f /var/jenkins_home/.kube/config ]; then
+                    KUBECONFIG=/var/jenkins_home/.kube/config
+                elif [ -f /root/.kube/config ]; then
+                    KUBECONFIG=/root/.kube/config
+                else
+                    echo "No kubeconfig found!"
+                    exit 1
+                fi
+                
+                export KUBECONFIG
+                
+                kubectl apply -f k8s/mysql-deployment.yaml
+                kubectl apply -f k8s/mysql-service.yaml
                 
                 sleep 30
                 
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/service.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/deployment.yaml
+                kubectl apply -f k8s/service.yaml
+                kubectl apply -f k8s/deployment.yaml
                 
-                kubectl --kubeconfig=$KUBECONFIG set image deployment/taxi-backend taxi-backend=$IMAGE_NAME:$IMAGE_TAG
-                
-                kubectl --kubeconfig=$KUBECONFIG rollout status deployment/taxi-backend --timeout=300s
+                kubectl set image deployment/taxi-backend taxi-backend=$IMAGE_NAME:$IMAGE_TAG
+                kubectl rollout status deployment/taxi-backend --timeout=300s
                 """
             }
         }
@@ -68,8 +76,16 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh """
-                kubectl --kubeconfig=$KUBECONFIG get pods
-                kubectl --kubeconfig=$KUBECONFIG get svc
+                if [ -f /var/jenkins_home/.kube/config ]; then
+                    KUBECONFIG=/var/jenkins_home/.kube/config
+                elif [ -f /root/.kube/config ]; then
+                    KUBECONFIG=/root/.kube/config
+                fi
+                
+                export KUBECONFIG
+                
+                kubectl get pods
+                kubectl get svc
                 """
             }
         }
