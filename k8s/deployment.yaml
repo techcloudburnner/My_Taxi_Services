@@ -1,105 +1,69 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 
 metadata:
-  name: taxi-backend
+  name: mysql
   labels:
-    app: taxi-backend
-    tier: backend
+    app: mysql
 
 spec:
-  replicas: 2
-  
+  replicas: 1
+
   selector:
     matchLabels:
-      app: taxi-backend
-      tier: backend
-
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+      app: mysql
 
   template:
     metadata:
       labels:
-        app: taxi-backend
-        tier: backend
+        app: mysql
 
     spec:
-      # Wait for MySQL to be ready
-      initContainers:
-        - name: check-mysql
-          image: busybox:1.36
-          command: ['sh', '-c', 
-            'until nc -z mysql 3306; do echo "Waiting for MySQL..."; sleep 5; done;']
-      
       containers:
-        - name: taxi-backend
-          image: rohit261/rudrabannataxiservices:latest
-          imagePullPolicy: Always
+        - name: mysql
+          image: mysql:8.0
 
           ports:
-            - containerPort: 8080
-              name: http
-              protocol: TCP
+            - containerPort: 3306
 
           env:
-            - name: DB_URL
-              value: "jdbc:mysql://mysql:3306/taxi_services?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
-            
-            - name: DB_USER
-              value: "root"
-            
-            - name: DB_PASSWORD
+            - name: MYSQL_ROOT_PASSWORD
               value: "root1234"
-            
-            - name: FRONTEND_URL
-              value: "http://localhost:3000"
-            
-            - name: APP_LOG_LEVEL
-              value: "INFO"
-            
-            - name: SHOW_SQL
-              value: "false"
-            
-            - name: SERVER_PORT
-              value: "8080"
-            
-            - name: SPRING_LOG_LEVEL
-              value: "INFO"
 
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
+            - name: MYSQL_DATABASE
+              value: "taxi_services"
+
+            - name: MYSQL_ROOT_HOST
+              value: "%"
 
           volumeMounts:
-            - name: uploads
-              mountPath: /app/uploads
-
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8080
-            initialDelaySeconds: 90
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 3
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
 
           readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: 8080
-            initialDelaySeconds: 30
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 20
             periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 3
+
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 60
+            periodSeconds: 20
 
       volumes:
-        - name: uploads
-          emptyDir: {}
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
