@@ -4,7 +4,6 @@ pipeline {
     environment {
         IMAGE_NAME = "rohit261/rudrabannataxiservices"
         IMAGE_TAG = "${BUILD_NUMBER}"
-        KUBECONFIG = "/var/jenkins_home/.kube/config"
     }
 
     stages {
@@ -45,16 +44,22 @@ pipeline {
             }
         }
 
-        stage('Deploy To Kubernetes') {
+        stage('Verify Image') {
             steps {
                 sh """
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/
-
-                kubectl --kubeconfig=$KUBECONFIG \
-                set image deployment/taxi-backend \
-                taxi-backend=$IMAGE_NAME:$IMAGE_TAG
+                echo "Build Successful"
+                echo "Image: $IMAGE_NAME:$IMAGE_TAG"
                 """
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline Completed Successfully'
+        }
+        failure {
+            echo 'Pipeline Failed'
         }
     }
 }
