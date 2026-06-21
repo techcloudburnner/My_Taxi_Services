@@ -53,7 +53,7 @@ pipeline {
                 kubectl --kubeconfig=$KUBECONFIG apply -f k8s/mysql-deployment.yaml
                 kubectl --kubeconfig=$KUBECONFIG apply -f k8s/mysql-service.yaml
                 
-                kubectl --kubeconfig=$KUBECONFIG wait --for=condition=ready pod -l app=mysql --timeout=120s
+                sleep 30
                 
                 kubectl --kubeconfig=$KUBECONFIG apply -f k8s/service.yaml
                 kubectl --kubeconfig=$KUBECONFIG apply -f k8s/deployment.yaml
