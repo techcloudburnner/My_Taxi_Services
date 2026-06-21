@@ -27,8 +27,8 @@ spec:
 
           env:
             - name: DB_URL
-              value: "jdbc:mysql://YOUR_REAL_DB_HOST:3306/taxi_services?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
-
+              value: "jdbc:mysql://mysql-service:3306/taxi_services?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+              
             - name: DB_USER
               value: "root"
 
