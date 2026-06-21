@@ -1,7 +1,6 @@
 pipeline {
 agent any
-
-```
+    
 environment {
     IMAGE_NAME = "rohit261/rudrabannataxiservices"
     IMAGE_TAG = "${BUILD_NUMBER}"
@@ -50,5 +49,4 @@ stages {
         }
     }
 
-   
-```
+
